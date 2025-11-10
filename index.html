@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Değerler Anketi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .popup {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .hourglass {
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Mouse Takipli Sayaç -->
+    <div id="mouseCounter" style="display: none; position: fixed; z-index: 9999; pointer-events: none;" 
+         class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold">
+    </div>
+
+    <!-- Loading Popup -->
+    <div id="loadingPopup" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 flex flex-col items-center popup">
+            <div class="text-6xl mb-4 hourglass">⏳</div>
+            <p class="text-xl font-semibold text-gray-700">Kaydediliyor...</p>
+        </div>
+    </div>
+
+    <!-- Success Popup -->
+    <div id="successPopup" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md shadow-2xl popup border-4 border-green-500">
+            <div class="text-center">
+                <div class="text-6xl mb-4">✅</div>
+                <h2 class="text-2xl font-bold text-green-600 mb-2">Teşekkürler!</h2>
+                <p class="text-gray-700">Tercihleriniz başarıyla kaydedildi.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Popup -->
+    <div id="errorPopup" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md shadow-2xl popup border-4 border-red-500">
+            <div class="text-center">
+                <div class="text-6xl mb-4">❌</div>
+                <h2 class="text-2xl font-bold text-red-600 mb-2">Hata!</h2>
+                <p id="errorMessage" class="text-gray-700 text-lg"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Popup -->
+    <div id="confirmPopup" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md shadow-2xl popup">
+            <div class="text-center">
+                <div class="text-6xl mb-4">⚠️</div>
+                <h2 class="text-2xl font-bold text-orange-600 mb-4">Emin misiniz?</h2>
+                <p class="text-gray-700 text-lg mb-6">Tüm veriler silinecek. Bu işlem geri alınamaz!</p>
+                <div class="flex gap-4 justify-center">
+                    <button onclick="cancelClear()" class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-semibold text-lg">
+                        HAYIR
+                    </button>
+                    <button onclick="confirmClear()" class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold text-lg">
+                        EVET, SİL
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ana Sayfa -->
+    <div id="surveyPage" class="min-h-screen p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">Değerler Anketi</h1>
+                <p class="text-gray-600 mb-6 text-center">Sizin için en önemli 10 değeri seçiniz</p>
+
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg flex justify-between items-center">
+                    <div>
+                        <span class="text-gray-700">Seçilen: </span>
+                        <span id="selectedCount" class="font-bold text-lg text-blue-600">0/10</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-700">Toplam Katılımcı: </span>
+                        <span id="totalSubmissions" class="font-bold text-lg text-green-600">0</span>
+                    </div>
+                </div>
+
+                <div id="warningMessage" style="display: none;" class="mb-6 p-4 rounded-lg bg-red-100 text-red-800 border border-red-300">
+                </div>
+
+                <div id="valuesList" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 max-h-[500px] overflow-y-auto p-4 border border-gray-200 rounded-lg">
+                </div>
+
+                <div class="flex justify-center mb-8">
+                    <button onclick="submitValues()" class="px-8 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition shadow-md">
+                        SUBMIT
+                    </button>
+                </div>
+
+                <div class="pt-6 border-t border-gray-200">
+                    <div class="flex items-center gap-4 max-w-md">
+                        <input type="password" id="adminPassword" placeholder="Şifre" 
+                               class="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onkeypress="if(event.key==='Enter') viewResults()">
+                        <button onclick="viewResults()" class="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition font-semibold">
+                            SONUÇ
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Sonuçları görüntülemek için şifre giriniz</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Sayfası -->
+    <div id="dashboardPage" style="display: none;" class="min-h-screen p-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">Değerler Dashboard</h1>
+                    <button onclick="goToSurvey()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">
+                        ← Ankete Dön
+                    </button>
+                </div>
+
+                <div class="mb-8 p-4 bg-blue-50 rounded-lg">
+                    <p class="text-lg text-gray-700">
+                        <span class="font-semibold">Toplam Katılımcı:</span> <span id="dashboardTotal">0</span>
+                    </p>
+                </div>
+
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6">En Çok Seçilen 10 Değer</h2>
+
+                <div id="chartContainer" class="mb-8"></div>
+
+                <div id="topValuesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>
+
+                <div class="mt-12 pt-8 border-t border-gray-200">
+                    <div class="flex items-center gap-4 max-w-md">
+                        <input type="password" id="clearPassword" placeholder="Admin Şifresi" 
+                               class="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                               onkeydown="if(event.key==='Enter') { event.preventDefault(); handleClear(); }">
+                        <button onclick="handleClear()" type="button" class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-semibold">
+                            CLEAR
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Tüm verileri temizlemek için admin şifresi gereklidir</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VALUES_LIST = [
+            "AÇIKLIK", "ADALET", "ADANMIŞLIK", "ADİL OLMAK", "ANLAYIŞ", "ARKADAŞLIK", "AZİM",
+            "BAĞLILIK", "BAŞARI", "BAŞKALARINI DÜŞÜNME", "BİLGİ", "BÜTÜNLÜK", "BÜTÜNSEL YAŞAM",
+            "CESARET", "ÇEŞİTLİLİK", "COŞKU", "ÇÖZÜM", "DAKİKLİK", "DAYANIŞMA", "DENEYİM/TECRÜBE",
+            "DENGE", "DESTEK", "DETAY", "DİSİPLİN", "DOYUM / TATMİN", "DÜRÜSTLÜK", "DÜZEN / DÜZENLİLİK",
+            "EĞLENCE", "EMEK", "EMPATİ", "ESNEKLİK", "EYLEM", "FARKLILIK", "GAYRET", "GELİŞİM",
+            "GİRİŞKENLİK", "GÜÇ", "GÜVEN", "HAKETMEK", "HEYECAN", "HOŞGÖRÜ", "HUZUR", "İCRAAT",
+            "İLETİŞİM", "İLHAM", "İLİŞKİ", "İNANÇ", "İNSANLARLA BAĞLANTI", "İSTEK", "İŞ BİRLİĞİ",
+            "İYİLİK / İYİ YÜREKLİLİK", "İYİMSERLİK", "KALİTE", "KARARLILIK", "KENDİNDEN EMİNLİK",
+            "KEYİF", "KİŞİSEL GELİŞİM", "LİDERLİK", "MAHREMİYET", "MİZAH", "MOTİVASYON",
+            "MUTLULUK", "MÜKEMMELLİK", "NEŞE", "NETLİK", "ÖĞRENME", "ÖNCÜ OLMAK", "ÖNGÖRÜ",
+            "ÖZÜ SÖZÜ BİR OLMA", "ÖZERKLİK", "ÖZGÜRLÜK", "ÖZGÜVEN", "ÖZVERİ", "PAYLAŞIM",
+            "PROFESYONELLİK", "RAHATLIK", "SABIR", "SADAKAT", "SADAKAT / VEFA", "SAMİMİYET",
+            "SAYGI", "SEVGİ", "SORUMLULUK", "SÖZÜNDE DURMAK", "SÜRDÜRÜLEBİLİRLİK",
+            "ŞEFFAFLIK", "ŞEFKAT", "TAKDİR", "TANINMAK", "TEVAZUU", "TUTKU", "UMUT", "UYUM",
+            "ÜRETİM / ÜRETKENLİK", "VİZYON", "YARATICILIK", "YAŞAM ENERJİSİ", "YENİLİK", "YETENEK"
+        ];
+
+        let selected = [];
+        let valueCounts = {};
+        let totalSubmissions = 0;
+
+        // LocalStorage'dan veri yükleme
+        function loadData() {
+            const savedCounts = localStorage.getItem('valueCounts');
+            const savedTotal = localStorage.getItem('totalSubmissions');
+            
+            if (savedCounts) valueCounts = JSON.parse(savedCounts);
+            if (savedTotal) totalSubmissions = parseInt(savedTotal);
+            
+            updateTotalDisplay();
+        }
+
+        // Toplam gösterimini güncelle
+        function updateTotalDisplay() {
+            document.getElementById('totalSubmissions').textContent = totalSubmissions;
+            document.getElementById('dashboardTotal').textContent = totalSubmissions;
+        }
+
+        // Değer listesini oluştur
+        function renderValuesList() {
+            const container = document.getElementById('valuesList');
+            container.innerHTML = '';
+            
+            VALUES_LIST.forEach((value, index) => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition bg-gray-50 border-2 border-gray-200 hover:bg-gray-100';
+                label.innerHTML = `
+                    <span class="text-gray-500 font-semibold min-w-[35px]">${index + 1}.</span>
+                    <input type="checkbox" value="${value}" onchange="toggleValue(this)" class="w-5 h-5 text-blue-600 cursor-pointer">
+                    <span class="text-gray-800 font-medium">${value}</span>
+                `;
+                container.appendChild(label);
+            });
+        }
+
+        // Değer seçimi
+        function toggleValue(checkbox) {
+            const value = checkbox.value;
+            
+            if (checkbox.checked) {
+                if (selected.length < 10) {
+                    selected.push(value);
+                    checkbox.parentElement.className = 'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition bg-blue-100 border-2 border-blue-500';
+                } else {
+                    checkbox.checked = false;
+                }
+            } else {
+                selected = selected.filter(v => v !== value);
+                checkbox.parentElement.className = 'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition bg-gray-50 border-2 border-gray-200 hover:bg-gray-100';
+            }
+            
+            document.getElementById('selectedCount').textContent = selected.length + '/10';
+            document.getElementById('warningMessage').style.display = 'none';
+        }
+
+        // Submit
+        function submitValues() {
+            if (selected.length !== 10) {
+                const msg = document.getElementById('warningMessage');
+                msg.textContent = 'Tam 10 seçim yapmalısınız!';
+                msg.style.display = 'block';
+                return;
+            }
+
+            document.getElementById('loadingPopup').style.display = 'flex';
+
+            setTimeout(() => {
+                selected.forEach(value => {
+                    valueCounts[value] = (valueCounts[value] || 0) + 1;
+                });
+
+                totalSubmissions++;
+
+                localStorage.setItem('valueCounts', JSON.stringify(valueCounts));
+                localStorage.setItem('totalSubmissions', totalSubmissions.toString());
+
+                updateTotalDisplay();
+                
+                selected = [];
+                document.querySelectorAll('#valuesList input[type="checkbox"]').forEach(cb => {
+                    cb.checked = false;
+                    cb.parentElement.className = 'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition bg-gray-50 border-2 border-gray-200 hover:bg-gray-100';
+                });
+                document.getElementById('selectedCount').textContent = '0/10';
+
+                document.getElementById('loadingPopup').style.display = 'none';
+                document.getElementById('successPopup').style.display = 'flex';
+                
+                setTimeout(() => {
+                    document.getElementById('successPopup').style.display = 'none';
+                }, 3000);
+            }, 1000);
+        }
+
+        // Sonuçları görüntüle
+        function viewResults() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === '1969') {
+                document.getElementById('surveyPage').style.display = 'none';
+                document.getElementById('dashboardPage').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                renderDashboard();
+            } else {
+                showError('Hatalı şifre!');
+            }
+        }
+
+        // Ankete dön
+        function goToSurvey() {
+            document.getElementById('dashboardPage').style.display = 'none';
+            document.getElementById('surveyPage').style.display = 'block';
+        }
+
+        // Dashboard render
+        function renderDashboard() {
+            const topValues = Object.entries(valueCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            const colors = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', 
+                            '#dbeafe', '#eff6ff', '#f0f9ff', '#e0f2fe', '#bae6fd'];
+
+            const grid = document.getElementById('topValuesGrid');
+            grid.innerHTML = '';
+
+            if (topValues.length === 0) {
+                grid.innerHTML = '<p class="text-gray-500 text-center col-span-2 py-8">Henüz veri yok</p>';
+                return;
+            }
+
+            topValues.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-700">${index + 1}. ${item[0]}</span>
+                        <span class="text-2xl font-bold" style="color: ${colors[index]}">${item[1]}</span>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        // Clear handler
+        function handleClear() {
+            const password = document.getElementById('clearPassword').value;
+            console.log('Clear butonu, şifre:', password);
+
+            if (!password || password === '') {
+                showError('Lütfen şifre giriniz!');
+                return;
+            }
+
+            if (password === '9691') {
+                console.log('Şifre doğru!');
+                document.getElementById('confirmPopup').style.display = 'flex';
+            } else {
+                console.log('Hatalı şifre!');
+                document.getElementById('clearPassword').value = '';
+                showError('Hatalı şifre!');
+            }
+        }
+
+        // Confirm clear
+        function confirmClear() {
+            console.log('Veriler siliniyor...');
+            document.getElementById('confirmPopup').style.display = 'none';
+            
+            localStorage.removeItem('valueCounts');
+            localStorage.removeItem('totalSubmissions');
+            
+            valueCounts = {};
+            totalSubmissions = 0;
+            
+            updateTotalDisplay();
+            renderDashboard();
+            
+            document.getElementById('clearPassword').value = '';
+            
+            document.getElementById('successPopup').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('successPopup').style.display = 'none';
+            }, 3000);
+        }
+
+        // Cancel clear
+        function cancelClear() {
+            console.log('İptal edildi');
+            document.getElementById('confirmPopup').style.display = 'none';
+            document.getElementById('clearPassword').value = '';
+        }
+
+        // Error popup
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorPopup').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('errorPopup').style.display = 'none';
+            }, 3000);
+        }
+
+        // Mouse takip
+        document.addEventListener('mousemove', (e) => {
+            if (selected.length > 0 && document.getElementById('surveyPage').style.display !== 'none') {
+                const counter = document.getElementById('mouseCounter');
+                counter.style.display = 'block';
+                counter.style.left = (e.clientX + 15) + 'px';
+                counter.style.top = (e.clientY + 15) + 'px';
+                counter.textContent = `Seçilen: ${selected.length}/10`;
+            } else {
+                document.getElementById('mouseCounter').style.display = 'none';
+            }
+        });
+
+        // Sayfa yüklendiğinde
+        window.onload = () => {
+            loadData();
+            renderValuesList();
+        };
+    </script>
+</body>
+</html>
